@@ -35,6 +35,7 @@ import org.jellyfin.androidtv.constant.LiveTvOption;
 import org.jellyfin.androidtv.constant.QueryType;
 import org.jellyfin.androidtv.data.model.DataRefreshService;
 import org.jellyfin.androidtv.data.querying.GetUserViewsRequest;
+import org.jellyfin.androidtv.preference.UserPreferences;
 import org.jellyfin.androidtv.data.repository.CustomMessageRepository;
 import org.jellyfin.androidtv.data.service.BackgroundService;
 import org.jellyfin.androidtv.databinding.EnhancedDetailBrowseBinding;
@@ -103,6 +104,7 @@ public class EnhancedBrowseFragment extends Fragment implements RowLoader, View.
     private final Lazy<ApiClient> api = inject(ApiClient.class);
     private final Lazy<ItemLauncher> itemLauncher = inject(ItemLauncher.class);
     private final Lazy<KeyProcessor> keyProcessor = inject(KeyProcessor.class);
+    private final Lazy<UserPreferences> userPreferences = inject(UserPreferences.class);
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -230,12 +232,13 @@ public class EnhancedBrowseFragment extends Fragment implements RowLoader, View.
         for (BrowseRowDef def : rows) {
             HeaderItem header = new HeaderItem(def.getHeaderText());
             ItemRowAdapter rowAdapter;
+            boolean preferSeriesThumbnails = userPreferences.getValue().get(UserPreferences.Companion.getSeriesThumbnailsEnabled());
             switch (def.getQueryType()) {
                 case NextUp:
-                    rowAdapter = new ItemRowAdapter(requireContext(), def.getNextUpQuery(), true, mCardPresenter, mRowsAdapter);
+                    rowAdapter = new ItemRowAdapter(requireContext(), def.getNextUpQuery(), preferSeriesThumbnails, mCardPresenter, mRowsAdapter);
                     break;
                 case LatestItems:
-                    rowAdapter = new ItemRowAdapter(requireContext(), def.getLatestItemsQuery(), true, mCardPresenter, mRowsAdapter);
+                    rowAdapter = new ItemRowAdapter(requireContext(), def.getLatestItemsQuery(), preferSeriesThumbnails, mCardPresenter, mRowsAdapter);
                     break;
                 case Views:
                     rowAdapter = new ItemRowAdapter(requireContext(), GetUserViewsRequest.INSTANCE, mCardPresenter, mRowsAdapter);

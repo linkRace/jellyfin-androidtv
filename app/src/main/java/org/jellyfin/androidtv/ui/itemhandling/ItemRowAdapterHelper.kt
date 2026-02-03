@@ -17,6 +17,8 @@ import org.jellyfin.androidtv.ui.GridButton
 import org.jellyfin.androidtv.ui.browsing.BrowseGridFragment.SortOption
 import org.jellyfin.sdk.api.client.ApiClient
 import org.jellyfin.sdk.api.client.exception.InvalidStatusException
+import org.jellyfin.androidtv.util.apiclient.JellyfinImage
+import org.jellyfin.androidtv.util.apiclient.JellyfinImageSource
 import org.jellyfin.sdk.api.client.extensions.artistsApi
 import org.jellyfin.sdk.api.client.extensions.itemsApi
 import org.jellyfin.sdk.api.client.extensions.libraryApi
@@ -25,6 +27,8 @@ import org.jellyfin.sdk.api.client.extensions.tvShowsApi
 import org.jellyfin.sdk.api.client.extensions.userLibraryApi
 import org.jellyfin.sdk.api.client.extensions.userViewsApi
 import org.jellyfin.sdk.api.client.extensions.videosApi
+import org.jellyfin.sdk.model.api.BaseItemKind
+import org.jellyfin.sdk.model.api.ImageType
 import org.jellyfin.sdk.model.api.ItemFilter
 import org.jellyfin.sdk.model.api.ItemSortBy
 import org.jellyfin.sdk.model.api.SeriesTimerInfoDto
@@ -41,6 +45,7 @@ import org.jellyfin.sdk.model.api.request.GetSeasonsRequest
 import org.jellyfin.sdk.model.api.request.GetSimilarItemsRequest
 import org.jellyfin.sdk.model.api.request.GetUpcomingEpisodesRequest
 import timber.log.Timber
+import java.util.UUID
 import kotlin.math.min
 
 fun <T : Any> ItemRowAdapter.setItems(
@@ -104,6 +109,13 @@ fun ItemRowAdapter.retrieveNextUpItems(api: ApiClient, query: GetNextUpRequest) 
 				api.tvShowsApi.getNextUp(query).content
 			}
 
+			// Fetch series thumb images for episodes that need them
+			val seriesThumbMap = if (preferParentThumb) {
+				fetchSeriesThumbImages(api, response.items)
+			} else {
+				emptyMap()
+			}
+
 			// Some special flavor for series, used in FullDetailsFragment
 			val firstNextUp = response.items.firstOrNull()
 			if (query.seriesId != null && response.items.size == 1 && firstNextUp?.seasonId != null && firstNextUp.indexNumber != null) {
@@ -127,9 +139,10 @@ fun ItemRowAdapter.retrieveNextUpItems(api: ApiClient, query: GetNextUpRequest) 
 					items = items,
 					transform = { item, _ ->
 						BaseItemDtoBaseRowItem(
-							item,
-							preferParentThumb,
-							false
+							item = item,
+							preferParentThumb = preferParentThumb,
+							staticHeight = false,
+							seriesThumbImageOverride = item.seriesId?.let { seriesThumbMap[it] }
 						)
 					}
 				)
@@ -140,9 +153,10 @@ fun ItemRowAdapter.retrieveNextUpItems(api: ApiClient, query: GetNextUpRequest) 
 					items = response.items,
 					transform = { item, _ ->
 						BaseItemDtoBaseRowItem(
-							item,
-							preferParentThumb,
-							isStaticHeight
+							item = item,
+							preferParentThumb = preferParentThumb,
+							staticHeight = isStaticHeight,
+							seriesThumbImageOverride = item.seriesId?.let { seriesThumbMap[it] }
 						)
 					}
 				)
@@ -156,6 +170,64 @@ fun ItemRowAdapter.retrieveNextUpItems(api: ApiClient, query: GetNextUpRequest) 
 	}
 }
 
+/**
+ * Fetches series backdrop/thumb images for episodes that don't have seriesThumbImageTag.
+ * Prefers Backdrop images (more commonly available) over Thumb images.
+ * Returns a map of seriesId to JellyfinImage.
+ */
+private suspend fun fetchSeriesThumbImages(
+	api: ApiClient,
+	episodes: List<org.jellyfin.sdk.model.api.BaseItemDto>
+): Map<UUID, JellyfinImage> {
+	// Find unique series IDs for episodes that need thumb images
+	val seriesIdsNeedingThumbs = episodes
+		.filter { it.type == BaseItemKind.EPISODE && it.seriesThumbImageTag == null && it.parentThumbItemId == null }
+		.mapNotNull { it.seriesId }
+		.distinct()
+
+	if (seriesIdsNeedingThumbs.isEmpty()) return emptyMap()
+
+	return withContext(Dispatchers.IO) {
+		// Fetch series info for all series that need thumb images
+		runCatching {
+			api.itemsApi.getItems(
+				ids = seriesIdsNeedingThumbs,
+			).content.items
+				.mapNotNull { series ->
+					// Prefer Backdrop (more common), fall back to Thumb
+					val backdropTag = series.backdropImageTags?.firstOrNull()
+					val thumbTag = series.imageTags?.get(ImageType.THUMB)
+
+					when {
+						backdropTag != null -> series.id to JellyfinImage(
+							item = series.id,
+							source = JellyfinImageSource.ITEM,
+							type = ImageType.BACKDROP,
+							tag = backdropTag,
+							blurHash = series.imageBlurHashes?.get(ImageType.BACKDROP)?.get(backdropTag),
+							aspectRatio = null,
+							index = 0,
+						)
+						thumbTag != null -> series.id to JellyfinImage(
+							item = series.id,
+							source = JellyfinImageSource.ITEM,
+							type = ImageType.THUMB,
+							tag = thumbTag,
+							blurHash = series.imageBlurHashes?.get(ImageType.THUMB)?.get(thumbTag),
+							aspectRatio = null,
+							index = null,
+						)
+						else -> null
+					}
+				}
+				.toMap()
+		}.getOrElse {
+			Timber.w(it, "Failed to fetch series thumb images")
+			emptyMap()
+		}
+	}
+}
+
 fun ItemRowAdapter.retrieveLatestMedia(api: ApiClient, query: GetLatestMediaRequest) {
 	ProcessLifecycleOwner.get().lifecycleScope.launch {
 		runCatching {
@@ -163,15 +235,23 @@ fun ItemRowAdapter.retrieveLatestMedia(api: ApiClient, query: GetLatestMediaRequ
 				api.userLibraryApi.getLatestMedia(query).content
 			}
 
+			// Fetch series thumb images for episodes that need them
+			val seriesThumbMap = if (preferParentThumb) {
+				fetchSeriesThumbImages(api, response)
+			} else {
+				emptyMap()
+			}
+
 			setItems(
 				items = response,
 				transform = { item, _ ->
 					BaseItemDtoBaseRowItem(
-						item,
-						preferParentThumb,
-						isStaticHeight,
-						BaseRowItemSelectAction.ShowDetails,
-						preferParentThumb,
+						item = item,
+						preferParentThumb = preferParentThumb,
+						staticHeight = isStaticHeight,
+						selectAction = BaseRowItemSelectAction.ShowDetails,
+						preferSeriesPoster = preferParentThumb,
+						seriesThumbImageOverride = item.seriesId?.let { seriesThumbMap[it] }
 					)
 				}
 			)
@@ -720,7 +800,8 @@ fun ItemRowAdapter.refreshItem(
 						preferParentThumb = currentBaseRowItem.preferParentThumb,
 						staticHeight = currentBaseRowItem.staticHeight,
 						selectAction = currentBaseRowItem.selectAction,
-						preferSeriesPoster = currentBaseRowItem.preferSeriesPoster
+						preferSeriesPoster = currentBaseRowItem.preferSeriesPoster,
+						seriesThumbImageOverride = currentBaseRowItem.seriesThumbImageOverride
 					)
 				)
 			},

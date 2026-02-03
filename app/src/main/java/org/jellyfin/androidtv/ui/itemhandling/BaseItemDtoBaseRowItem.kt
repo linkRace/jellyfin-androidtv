@@ -23,6 +23,7 @@ open class BaseItemDtoBaseRowItem @JvmOverloads constructor(
 	staticHeight: Boolean = false,
 	selectAction: BaseRowItemSelectAction = BaseRowItemSelectAction.ShowDetails,
 	val preferSeriesPoster: Boolean = false,
+	val seriesThumbImageOverride: JellyfinImage? = null,
 ) : BaseRowItem(
 	baseRowType = when (item.type) {
 		BaseItemKind.TV_CHANNEL,
@@ -59,6 +60,12 @@ open class BaseItemDtoBaseRowItem @JvmOverloads constructor(
 
 	override val isFavorite get() = baseItem?.userData?.isFavorite == true
 	override val isPlayed get() = baseItem?.userData?.played == true
+
+	/** Returns true if this episode has a series thumb image available (either via API or override) */
+	val hasSeriesThumb: Boolean
+		get() = baseItem?.parentThumbItemId != null ||
+			baseItem?.seriesThumbImageTag != null ||
+			seriesThumbImageOverride != null
 
 	override fun getCardName(context: Context) = when {
 		baseItem?.type == BaseItemKind.AUDIO && baseItem.artists != null -> baseItem.artists?.joinToString(", ")
@@ -108,6 +115,7 @@ open class BaseItemDtoBaseRowItem @JvmOverloads constructor(
 
 			preferParentThumb && baseItem?.type == BaseItemKind.EPISODE -> baseItem.parentImages[ImageType.THUMB]
 				?: baseItem.seriesThumbImage
+				?: seriesThumbImageOverride // Use override if provided (fetched separately)
 
 			baseItem?.type == BaseItemKind.SEASON -> baseItem.seriesPrimaryImage
 			baseItem?.type == BaseItemKind.PROGRAM -> baseItem.itemImages[ImageType.THUMB]

@@ -127,10 +127,13 @@ private fun BaseRowItem.getDisplayConfig(imageType: ImageType, uniformAspect: Bo
 	BaseRowType.BaseItem -> {
 		val preferSeriesPoster = this is BaseItemDtoBaseRowItem && preferSeriesPoster
 		val primaryAspectRatio = baseItem?.primaryImageAspectRatio?.toFloat()
+		// Check if series thumb is available (via API data or override from separate fetch)
+		val hasSeriesThumb = (this is BaseItemDtoBaseRowItem && this.hasSeriesThumb) ||
+			baseItem?.parentThumbItemId != null || baseItem?.seriesThumbImageTag != null
 		val defaultAspectRatio = when {
-			preferParentThumb && (baseItem?.parentThumbItemId != null || baseItem?.seriesThumbImageTag != null) -> ImageHelper.ASPECT_RATIO_16_9.toFloat()
+			preferParentThumb && baseItem?.type == BaseItemKind.EPISODE && hasSeriesThumb -> ImageHelper.ASPECT_RATIO_16_9.toFloat()
 			baseItem?.type == BaseItemKind.EPISODE && primaryAspectRatio != null -> primaryAspectRatio
-			baseItem?.type == BaseItemKind.EPISODE && (baseItem.parentThumbItemId != null || baseItem.seriesThumbImageTag != null) -> ImageHelper.ASPECT_RATIO_16_9.toFloat()
+			baseItem?.type == BaseItemKind.EPISODE && hasSeriesThumb -> ImageHelper.ASPECT_RATIO_16_9.toFloat()
 			baseItem?.type == BaseItemKind.USER_VIEW -> ImageHelper.ASPECT_RATIO_16_9.toFloat()
 			else -> primaryAspectRatio ?: ImageHelper.ASPECT_RATIO_7_9.toFloat()
 		}

@@ -12,6 +12,7 @@ import org.jellyfin.sdk.api.client.extensions.itemsApi
 import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.CollectionType
+import org.jellyfin.sdk.model.api.ImageType
 import org.jellyfin.sdk.model.api.ItemFilter
 import org.jellyfin.sdk.model.api.ItemSortBy
 import org.jellyfin.sdk.model.api.SortOrder
@@ -66,13 +67,15 @@ object BrowsingUtils {
 		limit = 50,
 		parentId = parentId,
 		imageTypeLimit = 1,
-		fields = ItemRepository.itemFields
+		fields = ItemRepository.itemFields,
+		enableImageTypes = setOf(ImageType.PRIMARY, ImageType.THUMB),
 	)
 
 	@JvmStatic
 	fun createSeriesGetNextUpRequest(parentId: UUID) = GetNextUpRequest(
 		seriesId = parentId,
-		fields = ItemRepository.itemFields
+		fields = ItemRepository.itemFields,
+		enableImageTypes = setOf(ImageType.PRIMARY, ImageType.THUMB),
 	)
 
 	@JvmStatic
@@ -88,6 +91,7 @@ object BrowsingUtils {
 		imageTypeLimit = 1,
 		includeItemTypes = itemType?.let(::setOf),
 		groupItems = groupItems,
+		enableImageTypes = listOf(ImageType.PRIMARY, ImageType.THUMB),
 	)
 
 	@JvmStatic

@@ -45,6 +45,7 @@ import org.jellyfin.androidtv.databinding.HorizontalGridBrowseBinding;
 import org.jellyfin.androidtv.databinding.PopupEmptyBinding;
 import org.jellyfin.androidtv.preference.LibraryPreferences;
 import org.jellyfin.androidtv.preference.PreferencesRepository;
+import org.jellyfin.androidtv.preference.UserPreferences;
 import org.jellyfin.androidtv.ui.AlphaPickerView;
 import org.jellyfin.androidtv.ui.itemhandling.BaseRowItem;
 import org.jellyfin.androidtv.ui.itemhandling.ItemLauncher;
@@ -114,6 +115,7 @@ public class BrowseGridFragment extends Fragment implements View.OnKeyListener {
 
     private final Lazy<BackgroundService> backgroundService = inject(BackgroundService.class);
     private final Lazy<PreferencesRepository> preferencesRepository = inject(PreferencesRepository.class);
+    private final Lazy<UserPreferences> userPreferences = inject(UserPreferences.class);
     private final Lazy<CustomMessageRepository> customMessageRepository = inject(CustomMessageRepository.class);
     private final Lazy<ItemLauncher> itemLauncher = inject(ItemLauncher.class);
     private final Lazy<KeyProcessor> keyProcessor = inject(KeyProcessor.class);
@@ -619,9 +621,10 @@ public class BrowseGridFragment extends Fragment implements View.OnKeyListener {
         }
         chunkSize=100;
 
+        boolean preferSeriesThumbnails = userPreferences.getValue().get(UserPreferences.Companion.getSeriesThumbnailsEnabled());
         switch (mRowDef.getQueryType()) {
             case NextUp:
-                mAdapter = new ItemRowAdapter(requireContext(), mRowDef.getNextUpQuery(), true, mCardPresenter, null);
+                mAdapter = new ItemRowAdapter(requireContext(), mRowDef.getNextUpQuery(), preferSeriesThumbnails, mCardPresenter, null);
                 break;
             case Views:
                 mAdapter = new ItemRowAdapter(requireContext(), GetUserViewsRequest.INSTANCE, mCardPresenter, null);

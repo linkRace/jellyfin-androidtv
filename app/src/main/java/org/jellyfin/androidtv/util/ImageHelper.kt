@@ -28,14 +28,15 @@ class ImageHelper(
 	}
 
 	fun getImageAspectRatio(item: BaseItemDto, preferParentThumb: Boolean): Double {
-		if (preferParentThumb && (item.parentThumbItemId != null || item.seriesThumbImageTag != null)) {
+		val hasSeriesThumb = item.parentThumbItemId != null || item.seriesThumbImageTag != null
+		if (preferParentThumb && item.type == BaseItemKind.EPISODE && hasSeriesThumb) {
 			return ASPECT_RATIO_16_9
 		}
 
 		val primaryAspectRatio = item.primaryImageAspectRatio;
 		if (item.type == BaseItemKind.EPISODE) {
 			if (primaryAspectRatio != null) return primaryAspectRatio
-			if (item.parentThumbItemId != null || item.seriesThumbImageTag != null) return ASPECT_RATIO_16_9
+			if (hasSeriesThumb) return ASPECT_RATIO_16_9
 		}
 
 		if (item.type == BaseItemKind.USER_VIEW && item.imageTags?.containsKey(ImageType.PRIMARY) == true) return ASPECT_RATIO_16_9
@@ -55,7 +56,8 @@ class ImageHelper(
 		fillHeight: Int? = null
 	): String? {
 		val image = when {
-			preferParentThumb && item.type == BaseItemKind.EPISODE -> item.parentImages[ImageType.THUMB] ?: item.seriesThumbImage
+			preferParentThumb && item.type == BaseItemKind.EPISODE -> item.parentImages[ImageType.THUMB]
+				?: item.seriesThumbImage
 			item.type == BaseItemKind.SEASON -> item.seriesPrimaryImage
 			item.type == BaseItemKind.PROGRAM && item.imageTags?.containsKey(ImageType.THUMB) == true -> item.itemImages[ImageType.THUMB]
 			item.type == BaseItemKind.AUDIO -> item.albumPrimaryImage

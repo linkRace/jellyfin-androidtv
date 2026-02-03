@@ -11,6 +11,7 @@ import org.jellyfin.androidtv.ui.presentation.CardPresenter
 import org.jellyfin.androidtv.ui.presentation.MutableObjectAdapter
 import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.CollectionType
+import org.jellyfin.sdk.model.api.ImageType
 import org.jellyfin.sdk.model.api.request.GetLatestMediaRequest
 
 class HomeFragmentLatestRow(
@@ -33,6 +34,7 @@ class HomeFragmentLatestRow(
 					parentId = item.id,
 					groupItems = true,
 					limit = ITEM_LIMIT,
+					enableImageTypes = listOf(ImageType.PRIMARY, ImageType.THUMB),
 				)
 
 				val title = context.getString(R.string.lbl_latest_in, item.name)

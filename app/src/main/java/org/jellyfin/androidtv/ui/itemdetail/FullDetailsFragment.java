@@ -588,7 +588,8 @@ public class FullDetailsFragment extends Fragment implements RecordingIndicatorV
 
                 break;
             case SERIES:
-                ItemRowAdapter nextUpAdapter = new ItemRowAdapter(requireContext(), BrowsingUtils.createSeriesGetNextUpRequest(mBaseItem.getId()), false, new CardPresenter(true, 130), adapter);
+                boolean preferSeriesThumbnails = userPreferences.getValue().get(UserPreferences.Companion.getSeriesThumbnailsEnabled());
+                ItemRowAdapter nextUpAdapter = new ItemRowAdapter(requireContext(), BrowsingUtils.createSeriesGetNextUpRequest(mBaseItem.getId()), preferSeriesThumbnails, new CardPresenter(true, 130), adapter);
                 addItemRow(adapter, nextUpAdapter, 0, getString(R.string.lbl_next_up));
 
                 ItemRowAdapter seasonsAdapter = new ItemRowAdapter(requireContext(), BrowsingUtils.createSeasonsRequest(mBaseItem.getId()), new CardPresenter(), adapter);
